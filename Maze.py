@@ -9,12 +9,9 @@ from CatAi import *
 from MouseAi import *
 
 dif_actions = [0,1,2,3]
-time_lapse = 15
+time_lapse = 25
 amount = 25
 
-epsilon = 0.2
-learning_rate = 0.7
-discount = 0.9
 
 class Maze(object):
     def __init__(self, maze, runner = (0,0), useMouseAi=True):
@@ -151,36 +148,50 @@ class Maze(object):
             new_xcor,new_ycor, new_mode = runner_xcor, runner_ycor, mode = self.mouse.state
             if self.mazeOutline[runner_xcor][runner_ycor] != '#':
                 self.mouse.visited_square.append((runner_xcor, runner_ycor))
-            
-        else :
-            new_xcor,new_ycor, new_mode = runner_xcor, runner_ycor, mode = self.cat.state
-            if self.mazeOutline[runner_xcor][runner_ycor] != '#':
-                self.cat.visited_square.append((runner_xcor, runner_ycor))
+            is_valid = self.check_move((new_xcor, new_ycor))
 
-        is_valid = self.check_move((new_xcor, new_ycor))
+            if not is_valid:
+                new_mode = 'barrier'
+            elif move in is_valid:
+                new_mode = 'running'
+                if move == 0: #left
+                    new_ycor-=1
+                elif move == 1: #up
+                    new_xcor -=1
+                if move == 2: #right
+                    new_ycor +=1
+                elif move == 3: #down
+                    new_xcor+=1
+            else:
+                new_mode = 'stop'
 
-        if not is_valid:
-            new_mode = 'barrier'
-        elif move in is_valid:
-            new_mode = 'running'
-            if move == 0: #left
-                new_ycor-=1
-            elif move == 1: #up
-                new_xcor -=1
-            if move == 2: #right
-                new_ycor +=1
-            elif move == 3: #down
-                new_xcor+=1
-        else:
-            new_mode = 'stop'
-
-        if is_mouse :
             cat_x, cat_y, cat_mode = self.cat.state
             if cat_x == new_xcor and cat_y == new_ycor :
                 new_mode = 'dead'
                 self.cat.state = (cat_x, cat_y, 'eating')
             self.mouse.state = (new_xcor,new_ycor, new_mode)
+            
         else :
+            new_xcor,new_ycor, new_mode = runner_xcor, runner_ycor, mode = self.cat.state
+            if self.mazeOutline[runner_xcor][runner_ycor] != '#':
+                self.cat.visited_square.append((runner_xcor, runner_ycor))
+            is_valid = self.check_move((new_xcor, new_ycor))
+
+            if not is_valid:
+                new_mode = 'barrier'
+            elif move in is_valid:
+                new_mode = 'running'
+                if move == 0: #left
+                    new_ycor-=1
+                elif move == 1: #up
+                    new_xcor -=1
+                if move == 2: #right
+                    new_ycor +=1
+                elif move == 3: #down
+                    new_xcor+=1
+            else:
+                new_mode = 'stop'
+
             mouse_x, mouse_y, mouse_mode = self.mouse.state
             if new_xcor == mouse_x and new_ycor == mouse_y :
                 new_mode = 'eating'
@@ -191,20 +202,22 @@ class Maze(object):
     def get_next_action(self, is_mouse):
         if is_mouse :
             cur_x, cur_y, cur_mode = self.mouse.state
+            valid_actions = self.check_move((cur_x, cur_y))  
+            if np.random.rand() > self.mouse.epsilon:
+                action = random.choice(valid_actions)
+            else:
+                action = np.argmax(self.mouse.q_vals[cur_x, cur_y])  
+            return action
+
         else :
             cur_x, cur_y, cur_mode = self.cat.state
-        valid_actions = self.check_move((cur_x, cur_y))
-        
-        # Get next action
-        if np.random.rand() > epsilon:
-            action = random.choice(valid_actions)
-
-        else:
-            if is_mouse :
-                action = np.argmax(self.mouse.q_vals[cur_x, cur_y])
-            else : 
+            valid_actions = self.check_move((cur_x, cur_y))
+            if np.random.rand() > self.cat.epsilon:
+                action = random.choice(valid_actions)
+            else:  
                 action = np.argmax(self.cat.q_vals[cur_x, cur_y])
-        return action
+            return action
+    
 
     #does the action
     def moves(self, is_mouse, decision):
