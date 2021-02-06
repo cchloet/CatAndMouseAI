@@ -1,2 +1,2 @@
 # CatAndMouseAI
-Final capstone project for Fall 2020
+Game of cat and mouse run by 2 AI objects
